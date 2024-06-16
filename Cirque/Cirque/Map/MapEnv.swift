@@ -20,3 +20,4 @@ let BBOX_COORDS = [[
 let BBOX_GEOMETRY = Geometry(Polygon(BBOX_COORDS))
 let TILEPACK_ID = "Leavenworth"
 let PROBLEMS_LAYER = "leavenworth-problems"
+let MIN_PROBLEM_VIEW_ZOOM: CGFloat = 17

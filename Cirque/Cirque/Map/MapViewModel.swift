@@ -29,18 +29,49 @@ class MapViewModel: ObservableObject {
     ) {
         cancellable?.cancel()
         guard let map = map else { return }
-        
+
         self.bottomInset = bottomInset
+
+        // Convert the screen point to a geographical coordinate
+        let coordinate = map.coordinate(for: context.point)
         
+        // Check if zoom level is sufficient, if not, zoom in and center map
+        if !isZoomLevelSufficient(for: map) {
+            zoomInAndCenterMap(map, to: coordinate, context: context)
+            return
+        }
+        
+        self.queryFeatures(at: context.point, in: map)
+    }
+
+    private func isZoomLevelSufficient(for map: MapboxMap) -> Bool {
+        let currentZoom = map.cameraState.zoom
+        return currentZoom >= MIN_PROBLEM_VIEW_ZOOM
+    }
+
+    private func zoomInAndCenterMap(
+        _ map: MapboxMap,
+        to coordinate: CLLocationCoordinate2D,
+        context: MapContentGestureContext
+    ) {
+        withViewportAnimation(.easeOut(duration: 0.5)) {
+            self.viewport = .camera(center: coordinate, zoom: MIN_PROBLEM_VIEW_ZOOM)
+        }
+    }
+
+    private func queryFeatures(
+        at point: CGPoint,
+        in map: MapboxMap
+    ) {
         // Increase the size of the area to query (tappable area)
         let querySize: CGFloat = 44
         let queryArea = CGRect(
-            x: context.point.x - querySize / 2,
-            y: context.point.y - querySize / 2,
+            x: point.x - querySize / 2,
+            y: point.y - querySize / 2,
             width: querySize,
             height: querySize
         )
-        
+
         cancellable = map.queryRenderedFeatures(with: queryArea) { [self] result in
             cancellable = nil
             guard let features = try? result.get() else { return }
@@ -52,15 +83,16 @@ class MapViewModel: ObservableObject {
                 }
                 return false
             }
-            
+
             guard let firstFeature = filteredFeatures.first else {
                 return
             }
-            
+
             let newProblem = Problem(feature: firstFeature.queriedFeature.feature)
             self.setNewProblem(problem: newProblem)
         }
     }
+
     
     func showPreviousProblem(map: MapboxMap?) {
         guard let currentProblem = problem else { return }
